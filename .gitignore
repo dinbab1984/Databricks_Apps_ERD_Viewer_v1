@@ -42,3 +42,6 @@ test_*.py
 .DS_Store
 Thumbs.db
 
+# Databricks
+.databricks
+
