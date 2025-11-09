@@ -1,0 +1,645 @@
+"""
+Reusable UI Components
+"""
+import streamlit.components.v1 as components
+import json
+
+
+def render_cytoscape(elements: dict, zoom: int = 100):
+    """
+    Render Cytoscape.js diagram with elegant table-style nodes
+    
+    Args:
+        elements: Dictionary with 'nodes' and 'edges' lists
+        zoom: Zoom level percentage (default 100)
+    """
+    # Convert elements to JSON - use a JSON script tag to avoid all escaping issues
+    elements_json_str = json.dumps(elements)
+    
+    html_code = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+        <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"></script>
+        <script id="elements-data" type="application/json">""" + elements_json_str + """</script>
+        <style>
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: #f8f9fa;
+                overflow: hidden;
+            }}
+            #cy {{
+                width: 100%;
+                height: 100vh;
+                background: white;
+            }}
+            
+            /* Table node styles */
+            .node-table {{
+                background: white;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                overflow: hidden;
+                min-width: 250px;
+                max-width: 400px;
+                font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+                pointer-events: auto;
+            }}
+            .node-table-header {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 10px 12px;
+                font-weight: 600;
+                font-size: 13px;
+                text-align: center;
+                border-bottom: 3px solid #5568d3;
+            }}
+            .node-table-header.has-fk {{
+                background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+                border-bottom-color: #117a8b;
+            }}
+            .node-table-header.is-referenced {{
+                background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+                border-bottom-color: #1e7e34;
+            }}
+            .node-table-header.both {{
+                background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+                border-bottom-color: #e68900;
+            }}
+            .node-table-body {{
+                background: white;
+            }}
+            .node-table table {{
+                width: 100%;
+                border-collapse: collapse;
+            }}
+            .node-column-row {{
+                border-bottom: 1px solid #e9ecef;
+            }}
+            .node-column-row:last-child {{
+                border-bottom: none;
+            }}
+            .node-column-row:hover {{
+                background: #f0f8ff;
+            }}
+            .node-column-cell {{
+                padding: 6px 10px;
+                font-size: 11px;
+                line-height: 1.6;
+            }}
+            .node-column-icon {{
+                display: inline-block;
+                min-width: 45px;
+                text-align: left;
+                margin-right: 8px;
+                vertical-align: middle;
+            }}
+            .node-column-name {{
+                font-weight: 600;
+                color: #2c3e50;
+                vertical-align: middle;
+            }}
+            .node-column-type {{
+                color: #7f8c8d;
+                font-size: 10px;
+                margin-left: 8px;
+                vertical-align: middle;
+            }}
+            .node-expand-btn {{
+                width: 100%;
+                padding: 6px;
+                text-align: center;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                font-size: 10px;
+                font-weight: 600;
+                cursor: pointer;
+                border: none;
+                border-top: 1px solid #dee2e6;
+                transition: all 0.2s;
+            }}
+            .node-expand-btn:hover {{
+                background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
+            }}
+            .node-column-row.collapsed {{
+                display: none;
+            }}
+            
+            /* Controls panel */
+            #controls {{
+                position: fixed;
+                top: 15px;
+                right: 15px;
+                background: rgba(255, 255, 255, 0.98);
+                border-radius: 10px;
+                padding: 15px;
+                z-index: 1000;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+                min-width: 220px;
+                transition: all 0.3s ease;
+            }}
+            #controls.minimized {{
+                padding: 10px;
+                min-width: auto;
+            }}
+            #controls h4 {{
+                margin: 0 0 12px 0;
+                font-size: 15px;
+                color: #667eea;
+                text-align: center;
+                border-bottom: 2px solid #f0f0f0;
+                padding-bottom: 8px;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }}
+            #controls h4 .title {{
+                flex: 1;
+            }}
+            #minimize-btn {{
+                background: none;
+                border: none;
+                color: #667eea;
+                cursor: pointer;
+                font-size: 16px;
+                padding: 0;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 4px;
+                transition: all 0.2s;
+            }}
+            #minimize-btn:hover {{
+                background: #f0f0f0;
+                transform: none;
+                box-shadow: none;
+            }}
+            .controls-content {{
+                transition: all 0.3s ease;
+                overflow: hidden;
+            }}
+            #controls.minimized .controls-content {{
+                max-height: 0;
+                opacity: 0;
+                margin: 0;
+                padding: 0;
+            }}
+            .control-group {{
+                margin: 12px 0;
+            }}
+            .control-label {{
+                font-size: 11px;
+                color: #6c757d;
+                margin-bottom: 6px;
+                font-weight: 600;
+                display: block;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }}
+            .button-row {{
+                display: flex;
+                gap: 6px;
+                justify-content: center;
+            }}
+            button {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                padding: 9px 14px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 600;
+                transition: all 0.2s;
+                box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+            }}
+            button:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+            }}
+            button:active {{
+                transform: translateY(0);
+            }}
+            select {{
+                width: 100%;
+                padding: 8px 10px;
+                border: 2px solid #e9ecef;
+                border-radius: 6px;
+                font-size: 12px;
+                background: white;
+                cursor: pointer;
+            }}
+            #zoom-display {{
+                text-align: center;
+                font-size: 14px;
+                color: #2c3e50;
+                margin: 6px 0;
+                font-weight: 600;
+            }}
+            .legend {{
+                font-size: 11px;
+                color: #6c757d;
+                margin-top: 12px;
+                padding-top: 12px;
+                border-top: 2px solid #f0f0f0;
+            }}
+            .legend-title {{
+                font-weight: 600;
+                color: #495057;
+                margin-bottom: 6px;
+            }}
+            .legend-item {{
+                margin: 4px 0;
+            }}
+        </style>
+    </head>
+    <body>
+        <div id="cy"></div>
+        <div id="controls">
+            <h4>
+                <span class="title">🎛️ ERD Controls</span>
+                <button id="minimize-btn" onclick="toggleMinimize()" title="Minimize">➖</button>
+            </h4>
+            
+            <div class="controls-content">
+                <div class="control-group">
+                    <div class="control-label">Layout</div>
+                    <select id="layout-select" onchange="changeLayout(this.value)">
+                        <option value="dagre">Hierarchical ⭐</option>
+                        <option value="breadthfirst">Breadth First</option>
+                        <option value="cose">Force Directed</option>
+                        <option value="circle">Circle</option>
+                        <option value="grid">Grid</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <div class="control-label">Zoom</div>
+                    <div id="zoom-display">100%</div>
+                    <div class="button-row">
+                        <button onclick="zoomOut()">➖</button>
+                        <button onclick="resetView()">Reset</button>
+                        <button onclick="zoomIn()">➕</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="button-row">
+                        <button onclick="fitToScreen()" style="width: 100%;">📐 Fit Screen</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="button-row">
+                        <button onclick="toggleFullscreen()" style="width: 100%;">⛶ Fullscreen</button>
+                    </div>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-title">Legend</div>
+                    <div class="legend-item">🔑 Primary Key</div>
+                    <div class="legend-item">🔗 Foreign Key</div>
+                    <div class="legend-item">⚠️ NOT NULL</div>
+                    <div class="legend-item" style="margin-top: 8px; font-style: italic;">💡 Drag tables • Click expand button</div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            console.log('=== Starting Cytoscape ERD Initialization ===');
+            
+            // Read elements from JSON script tag (safest method - no escaping issues!)
+            try {
+                console.log('1. Reading data from JSON script tag...');
+                const dataScript = document.getElementById('elements-data');
+                console.log('2. Script element found:', !!dataScript);
+                
+                const elementsJson = dataScript.textContent;
+                console.log('3. JSON length:', elementsJson.length);
+                
+                const elements = JSON.parse(elementsJson);
+                console.log('4. Parsed elements - nodes:', elements.nodes.length, 'edges:', elements.edges.length);
+                
+                window.elements = elements;
+            } catch (error) {
+                console.error('❌ Error loading elements:', error);
+                document.body.innerHTML = '<div style="padding: 20px; color: red;">Error loading data: ' + error.message + '</div>';
+            }
+            
+            let cy;
+            let currentLayout = 'dagre';
+            let nodeHtmlElements = {};
+            
+            console.log('5. Checking Cytoscape libraries...');
+            console.log('   - cytoscape:', typeof cytoscape);
+            console.log('   - dagre:', typeof dagre);
+            
+            if (typeof cytoscape !== 'undefined' && typeof dagre !== 'undefined') {
+                cytoscape.use(cytoscapeDagre);
+                console.log('6. ✅ Dagre layout registered');
+            } else {
+                console.error('❌ Cytoscape or Dagre not loaded!');
+            }
+            
+            function createTableHTML(node) {
+                const label = node.data('label');
+                const columns = node.data('columns') || [];
+                const columnCount = node.data('column_count') || 0;
+                const hasFk = node.data('has_fk');
+                const isReferenced = node.data('is_referenced');
+                const nodeId = node.id();
+                
+                let headerClass = '';
+                if (hasFk && isReferenced) {{
+                    headerClass = 'both';
+                }} else if (hasFk) {{
+                    headerClass = 'has-fk';
+                }} else if (isReferenced) {{
+                    headerClass = 'is-referenced';
+                }}
+                
+                const isCollapsible = columns.length > 10;
+                const initialDisplayCount = isCollapsible ? 8 : columns.length;
+                
+                let html = '<div class="node-table" data-node-id="' + nodeId + '">';
+                html += '<div class="node-table-header ' + headerClass + '">' + label + '</div>';
+                html += '<div class="node-table-body"><table>';
+                
+                if (columns.length > 0) {{
+                    columns.forEach((col, index) => {{
+                        const isCollapsed = isCollapsible && index >= initialDisplayCount;
+                        const rowClass = isCollapsed ? 'node-column-row collapsed' : 'node-column-row';
+                        
+                        let iconHtml = '';
+                        let colText = col;
+                        
+                        if (col.includes('🔑')) {{
+                            iconHtml += '<span style="color: #ffc107; font-weight: bold;">🔑</span>';
+                            colText = colText.replace('🔑', '');
+                        }}
+                        if (col.includes('🔗')) {{
+                            iconHtml += '<span style="color: #17a2b8; font-weight: bold;">🔗</span>';
+                            colText = colText.replace('🔗', '');
+                        }}
+                        if (col.includes('⚠️')) {{
+                            iconHtml += '<span style="color: #fd7e14; font-weight: bold;">⚠️</span>';
+                            colText = colText.replace('⚠️', '');
+                        }}
+                        
+                        if (!iconHtml) {{
+                            iconHtml = '<span style="opacity: 0;">　</span>';
+                        }}
+                        
+                        const parts = colText.split(':');
+                        const name = parts[0].trim();
+                        const type = parts[1] ? parts[1].trim() : '';
+                        
+                        html += '<tr class="' + rowClass + '">';
+                        html += '<td class="node-column-cell">';
+                        html += '<span class="node-column-icon">' + iconHtml + '</span>';
+                        html += '<span class="node-column-name">' + name + '</span>';
+                        if (type) {{
+                            html += '<span class="node-column-type">' + type + '</span>';
+                        }}
+                        html += '</td></tr>';
+                    }});
+                    
+                    if (isCollapsible) {{
+                        html += '<tr><td colspan="100%" style="padding: 0;">';
+                        html += '<button class="node-expand-btn" onclick="window.toggleTableExpand(\'' + nodeId + '\'); return false;">';
+                        html += '<span class="expand-text">▼ Show All (' + columnCount + ' columns)</span>';
+                        html += '<span class="collapse-text" style="display:none;">▲ Show Less</span>';
+                        html += '</button></td></tr>';
+                    }}
+                }} else {{
+                    html += '<tr class="node-column-row"><td class="node-column-cell" style="color: #999;">No columns</td></tr>';
+                }}
+                
+                html += '</table></div></div>';
+                return html;
+            }
+            
+            function initCytoscape() {
+                try {
+                    console.log('7. === initCytoscape() called ===');
+                    console.log('8. Container element:', document.getElementById('cy'));
+                    console.log('9. Elements object:', window.elements);
+                    
+                    console.log('10. Creating Cytoscape instance...');
+                    cy = cytoscape({
+                        container: document.getElementById('cy'),
+                        elements: window.elements,
+                        style: [
+                            {
+                                selector: 'node',
+                                style: {
+                                    'background-color': 'white',
+                                    'background-opacity': 0,
+                                    'border-width': 0,
+                                    'width': 250,
+                                    'height': function(ele) {{
+                                        const columns = ele.data('columns') || [];
+                                        const headerHeight = 35;
+                                        const rowHeight = 24;
+                                        const buttonHeight = 28;
+                                        const isCollapsible = columns.length > 10;
+                                        const visibleRows = isCollapsible ? 8 : columns.length;
+                                        const extraHeight = isCollapsible ? buttonHeight : 0;
+                                        return headerHeight + (visibleRows * rowHeight) + extraHeight + 10;
+                                    }},
+                                    'shape': 'rectangle',
+                                    'label': ''
+                                }}
+                            }},
+                            {{
+                                selector: 'node:selected',
+                                style: {{
+                                    'overlay-color': '#667eea',
+                                    'overlay-opacity': 0.2,
+                                    'overlay-padding': 8
+                                }}
+                            }},
+                            {{
+                                selector: 'edge',
+                                style: {{
+                                    'width': 2.5,
+                                    'line-color': '#667eea',
+                                    'target-arrow-color': '#667eea',
+                                    'target-arrow-shape': 'triangle',
+                                    'curve-style': 'bezier',
+                                    'arrow-scale': 2,
+                                    'label': 'data(label)',
+                                    'font-size': '10px',
+                                    'text-rotation': 'autorotate',
+                                    'text-margin-y': -10,
+                                    'color': '#495057',
+                                    'text-background-color': 'white',
+                                    'text-background-opacity': 0.95,
+                                    'text-background-padding': '4px',
+                                    'font-weight': '500'
+                                }}
+                            }},
+                            {{
+                                selector: 'edge:selected',
+                                style: {{
+                                    'line-color': '#ff6b6b',
+                                    'target-arrow-color': '#ff6b6b',
+                                    'width': 4
+                                }}
+                            }}
+                        ],
+                        layout: {{ name: 'preset' }},
+                        minZoom: 0.15,
+                        maxZoom: 2.5,
+                        wheelSensitivity: 0.15
+                    }});
+                    
+                    cy.nodes().forEach(node => {{
+                        const domElement = document.createElement('div');
+                        domElement.innerHTML = createTableHTML(node);
+                        domElement.style.position = 'absolute';
+                        domElement.style.transformOrigin = 'center center';
+                        domElement.style.zIndex = '1';
+                        
+                        document.body.appendChild(domElement);
+                        nodeHtmlElements[node.id()] = domElement;
+                        updateNodePosition(node, domElement);
+                    }});
+                    
+                    cy.on('pan zoom resize', function() {{
+                        cy.nodes().forEach(node => {{
+                            const domElement = nodeHtmlElements[node.id()];
+                            if (domElement) updateNodePosition(node, domElement);
+                        }});
+                    }});
+                    
+                    cy.on('position', 'node', function(evt) {{
+                        const domElement = nodeHtmlElements[evt.target.id()];
+                        if (domElement) updateNodePosition(evt.target, domElement);
+                    }});
+                    
+                    cy.on('zoom', updateZoomDisplay);
+                    
+                    cy.on('tap', 'node', function(evt) {{
+                        window.parent.postMessage({{ type: 'table_click', table: evt.target.data('label') }}, '*');
+                    }});
+                    
+                    console.log('11. Running initial layout...');
+                    runLayout(currentLayout);
+                    console.log('12. ✅✅✅ Cytoscape initialized successfully! ✅✅✅');
+                }} catch (error) {{
+                    console.error('❌❌❌ Error initializing Cytoscape:', error);
+                    console.error('Error stack:', error.stack);
+                    document.body.innerHTML += '<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; background: red; color: white; border-radius: 10px;">ERROR: ' + error.message + '</div>';
+                }}
+            }}
+            
+            function updateNodePosition(node, domElement) {{
+                const pos = node.renderedPosition();
+                const zoom = cy.zoom();
+                domElement.style.left = pos.x + 'px';
+                domElement.style.top = pos.y + 'px';
+                domElement.style.transform = 'translate(-50%, -50%) scale(' + zoom + ')';
+            }}
+            
+            window.toggleTableExpand = function(nodeId) {{
+                try {{
+                    const tableElement = document.querySelector('.node-table[data-node-id="' + nodeId + '"]');
+                    if (!tableElement) return false;
+                    
+                    const collapsedRows = tableElement.querySelectorAll('.node-column-row.collapsed');
+                    if (collapsedRows.length === 0) return false;
+                    
+                    const button = tableElement.querySelector('.node-expand-btn');
+                    const expandText = button.querySelector('.expand-text');
+                    const collapseText = button.querySelector('.collapse-text');
+                    
+                    const isExpanded = collapsedRows[0].style.display === 'table-row';
+                    
+                    collapsedRows.forEach(row => {{
+                        row.style.display = isExpanded ? 'none' : 'table-row';
+                    }});
+                    
+                    expandText.style.display = isExpanded ? 'inline' : 'none';
+                    collapseText.style.display = isExpanded ? 'none' : 'inline';
+                    
+                    const node = cy.getElementById(nodeId);
+                    if (node) {{
+                        const columns = node.data('columns') || [];
+                        const headerHeight = 35;
+                        const rowHeight = 24;
+                        const buttonHeight = 28;
+                        const visibleRows = isExpanded ? 8 : columns.length;
+                        node.style('height', headerHeight + (visibleRows * rowHeight) + buttonHeight + 10);
+                        setTimeout(() => runLayout(currentLayout), 100);
+                    }}
+                }} catch (error) {{
+                    console.error('Toggle error:', error);
+                }}
+                return false;
+            }};
+            
+            function runLayout(layoutName) {{
+                let opts = {{}};
+                if (layoutName === 'dagre') {{
+                    opts = {{ name: 'dagre', rankDir: 'TB', nodeSep: 100, rankSep: 150, padding: 50, animate: true, animationDuration: 600 }};
+                }} else if (layoutName === 'cose') {{
+                    opts = {{ name: 'cose', animate: true, animationDuration: 600, nodeRepulsion: 400000, idealEdgeLength: 200, padding: 50 }};
+                }} else if (layoutName === 'breadthfirst') {{
+                    opts = {{ name: 'breadthfirst', directed: true, spacingFactor: 2, padding: 50, animate: true, animationDuration: 600 }};
+                }} else if (layoutName === 'circle') {{
+                    opts = {{ name: 'circle', animate: true, animationDuration: 600, padding: 80 }};
+                }} else if (layoutName === 'grid') {{
+                    opts = {{ name: 'grid', animate: true, animationDuration: 600, padding: 50, avoidOverlap: true }};
+                }}
+                cy.layout(opts).run();
+                setTimeout(() => cy.fit(60), 700);
+            }}
+            
+            function changeLayout(name) {{ currentLayout = name; runLayout(name); }}
+            function updateZoomDisplay() {{ document.getElementById('zoom-display').textContent = Math.round(cy.zoom() * 100) + '%'; }}
+            function zoomIn() {{ cy.zoom({{ level: cy.zoom() * 1.25, renderedPosition: {{ x: cy.width() / 2, y: cy.height() / 2 }} }}); }}
+            function zoomOut() {{ cy.zoom({{ level: cy.zoom() * 0.8, renderedPosition: {{ x: cy.width() / 2, y: cy.height() / 2 }} }}); }}
+            function resetView() {{ cy.zoom(1); cy.center(); }}
+            function fitToScreen() {{ cy.fit(70); }}
+            function toggleFullscreen() {{
+                const elem = document.documentElement;
+                if (!document.fullscreenElement) {{
+                    if (elem.requestFullscreen) elem.requestFullscreen();
+                    else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+                }} else {{
+                    if (document.exitFullscreen) document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                }}
+            }}
+            function toggleMinimize() {{
+                const controls = document.getElementById('controls');
+                const btn = document.getElementById('minimize-btn');
+                if (controls.classList.contains('minimized')) {{
+                    controls.classList.remove('minimized');
+                    btn.textContent = '➖';
+                }} else {{
+                    controls.classList.add('minimized');
+                    btn.textContent = '➕';
+                }}
+            }}
+            
+            window.addEventListener('load', initCytoscape);
+            if (document.readyState === 'complete') initCytoscape();
+        </script>
+    </body>
+    </html>
+    """
+    
+    components.html(html_code, height=900, scrolling=False)
