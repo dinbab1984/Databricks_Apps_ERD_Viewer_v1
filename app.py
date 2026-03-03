@@ -107,7 +107,7 @@ def main():
     render_explorer_sidebar()
     
     # Main content area
-    if st.session_state.connected:
+    if st.session_state.get("connected", False):
         # ERD Diagram with integrated search and table details panels
         render_erd_diagram()
     else:

@@ -8,6 +8,23 @@ import streamlit as st
 from databricks_client import DatabricksClient
 from erd_generator import CytoscapeERDGenerator
 
+
+def _ensure_session_state_defaults():
+    """Ensure keys used by the sidebar exist before access."""
+    defaults = {
+        "client": None,
+        "connected": False,
+        "selected_catalog": None,
+        "selected_schema": None,
+        "schema_metadata": {},
+        "selected_tables": [],
+        "minimized_tables": set(),
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
 def connect_to_databricks(
     host: Optional[str] = None,
     token: Optional[str] = None,
@@ -105,6 +122,8 @@ def load_schema_metadata(catalog: str, schema: str):
 
 def render_explorer_sidebar():
     """Render compact left sidebar explorer"""
+    _ensure_session_state_defaults()
+
     with st.sidebar:
         st.markdown("**📊 ERD Viewer**")
         st.caption("Databricks Unity Catalog")
