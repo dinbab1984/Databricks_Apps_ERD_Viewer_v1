@@ -9,7 +9,7 @@ A powerful, interactive Entity Relationship Diagram (ERD) viewer for Databricks 
 
 ### Core Features
 - 🔄 **Auto-generated ERDs** from Unity Catalog metadata
-- 🔗 **Relationship Detection** - Automatic FK/PK relationship mapping
+- 🔗 **Relationship Detection** - Based on UC defined FK/PK relationship mapping
 - 🔍 **Smart Search** - Search tables and columns with related table inclusion
 - 🎯 **Interactive** - Click tables/columns for detailed information
 - 📊 **Table Selection** - Multi-select specific tables or view all
